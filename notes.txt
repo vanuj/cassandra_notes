@@ -1,0 +1,210 @@
+C*=>cassandra
+-C* Trainer : Nirmalya 
+
+Imp URL's
+https://etherpad.openstack.org/p/9AwkC2HnZP
+D:\anuj\apache-cassandra-3.11.0-bin\apache-cassandra-3.11.0\bin
+
+C* one liners
+---------------------
+C* Read before write.
+
+C* dosent read before write, and thats why it is fast. 
+
+NTP : Network time protocol
+-C* never operates on n/w time, it uses NTP
+
+-C* is called P2P(peer to peer system)
+
+-Hashmap reads before write, C* doesnt.
+-C* is a data store.
+-C* is masterless architecture
+-C* driver auto setsup and discover all the nodes during init(nodes-ip address) 
+-C* driver drives the nodes
+
+Seed Notes:
+-C* a node registers   itself and start registering others, and starts seeding, using common lang TCP, and gossip
+-C* decomission, remove, assasinate
+-C* gossip : random(3 nodes) info sharing based on timestamp info about nodes down(heartbeat) and other(ip) information
+-C* gossip and handshaking is different. (no need to get useful info back in return of a valuable info, inform of acknowledgement).
+
+
+-C* : when node is added, it recalculates the ROL and distributes the ranges among peer nodes.
+	And then data is distributed/copied after waiting of 30seconds.
+	User copy the data clockwise in cassandra.
+	how many rings are possible in cassandra  ?
+-C* 2 nodes , replication factor is 3, it stops after 
+-C* system.local and system.peers in each node. Token range is maintained
+
+-C* Snitch : topology aware and avoid replicating data in same rack and same technology.
+	node add, remove, key space change, made a change in snitch(java class) to recalculate 
+
+Deployments - 4 Dimensions
+node->racks->ring/datacenter(same)->cluster
+
+SEDA Architecture
+
+Cassandra Query Language (CQL), is a playload kind of things.
+Cassandra is QDD Query Driven Design
+
+
+Code : 
+Have pythons
+Have Java
+Have Cassandra
+
+cassandra.yaml
+	cluster_name
+	hints_directory
+	authenticator
+	authorizer
+	partitioner
+	data_file_directories:
+	commitlog_directory
+	saved_caches_directory
+	seed_provider
+	disk_optimization_strategy  //from ssd to spinning
+	listen_address: localhost
+	endpoint_snitch: GossipingPropertyFileSnitch
+
+ssd : increase performance if we play with it. solid state disks
+
+modify cassandra-rackdc.properties
+dc=dc1
+rack=rack1 to r1
+
+cassandra.bat
+
+in new cmd : 
+cassandra bin : go to nodetool.bat status
+
+in new cmd : 
+cqlsh.bat -u cassandra
+
+CREATE KEYSPACE IF NOT EXISTS stockdb WITH replication = {'class':'NetworkTopologyStrategy', 'dc1' : 1};
+
+CREATE TABLE stockdb.user11 (
+  user_id VARCHAR,
+  display_name VARCHAR,
+  first_name VARCHAR,
+  last_name VARCHAR,
+  PRIMARY KEY (user_id)
+);
+
+insert into stockdb.user11 (user_id, display_name, first_name, last_name) values ('u1', 'NM2', 'Anuj', 'Verma' );
+
+update stockdb.user set display_name = 'NM-100', first_name = 'Nirmallya' where user_id = 'u2';
+
+insert into stockdb.user(user_id, last_name) values ('u2', 'Mukherjee22');
+
+delete from stockdb.user where user_id = 'u200';
+
+var\lib\cassandra\data : go and check stockdb
+
+nodetool.bat describering stockdb > stockdb.txt (created in bin folder and file name as stockdb)
+
+describe keyspaces
+ 
+describe keyspace stockdb
+
+describe tables
+
+describe table stockdb.user11
+
+In any table : primary key and partition key are mandatory; partition key + clustering cols will give us primary key.
+PRIMARY KEY (meter_id, date), created_hh, created_min)
+By default first is taken as the primary key
+
+DATA MODEL DESIGN ADN LOGIC
+-----------------------------------------
+- Cassandra Query Language (CQL), is a playload kind of things.
+Cassandra is QDD Query Driven Design
+- Sec Index not a good solution in C* thing something else
+- Should solve fast performance data and quick with logical design that will give us the desired data(not the any data)
+- Not good for analytics OLAP.(C* + Spark db will give bith support, spark is master slave)
+- DATA format in node 
+	Partition key : c1c2 data : c1c2 data : c1c2 data
+	
+	cc clustering columns
+- NEVER have unbounded values for declaring/naming clustering columns
+	E.g. no varchar, because they are used in column identifier keys
+- Assume 
+	Node gets inert and update,
+	It save data model in Binary tree format
+	It save and maintains key(primary, cc , columns) in key valus pair in a row
+	Hence if any update comes, it know the Binary tree address and adds it to the tree
+	Hence we can update or delete any column identified and maintains an in-memory tree.
+	It transfers the in-mrmory BTree data to db file.
+	It keeps on putting these.
+
+2.x => 3.x improves efficiency from 4 times.
+By changing it into byte buffer, the overlapping main cluster with 10:01
+
+Previously it used to shoe the inmemory and processing things 
+on cassandra cli, now they have moved it to ssTable dumps.
+
+
+Consistency Level (CL)
+For how long should the driver wait..? to get ackn?
+Developer himself sets the consistency Level
+
+tracing on;
+
+Read/Repair
+DC local read repair chance, or DC read/repair chance
+
+hinted folder
+consistence level >1 will kik in the blocking read repair.
+consistency = 1, chance will decide if read repair is to be triggered and if triggered it would be non blocking
+nodetool repair : all nodes, partition, data checks, all nodes;
+
+
+19July
+-----------------------
+ps -ef | grep Cass (ubuntu)
+kill -9 (ubuntu)
+
+Window
+	End java process via task manager
+	go to var lib data and see 8 files generated
+
+	Now insert one more data to cassandra(please start it once)
+	and type : nodetool.bat flush
+	Observe.. files go replicated in the folder.
+
+	Create folder flush at same level
+	nodetool.bat flush
+	nodetool.bat refresh stockdb user11
+
+	creating snapshot
+	nodetool.bat snapshot
+
+	delete a record
+		delete last_name from stockdb.user11 where user_id = 'u1';
+		select * from stockdb.user11;
+
+		nodetool.bat compact
+
+		nodetool.bat getsstables stockdb user11 u1; // will give path to some data 
+		copy that path and 
+		go to tool\bin and fire sstabledump.bat -d C:\var\lib\cassandra\data\stockdb\user11-bcd3ded06bd411e78c47cd5a8b8f9c86\mc-9-big-Data.db
+		check tombstone
+
+		
+
+TTL
+-----------------
+update stockdb.user11 using ttl 30 set last_name = 'verma' where user_id ='u2';
+useful in TOP, email renew, passowrd retrieve
+
+Other Query 
+---------------------------
+ IN query risky in some cases:
+ 	select * from stockdb.user11 where user_id in ('u1', 'u3');
+  
+  
+select * from stockdb.user11 where last_name='ada'; Error 
+select * from stockdb.user11 where last_name='ada'ALLOW FILTERING ;
+since internally it will do select * from, hence dont use ALLOW FILTERING
+ALLOW FILTERING is based on Linear scan
+Secondary Index uses Binary Tree scan

@@ -1,0 +1,184 @@
+C*=>cassandra
+-C*
+
+Tyler Hobbs : contributor : chkout videos
+
+
+Brief overview
+	Needs atleast 1gbps network
+Seeds
+Gossip (snitch)
+Coordinator
+Handshaking
+
+
+insert into stockdb.user (user_id, display_name, first_name, last_name) values ('u3', 'NM4', 'Some', 'One' );
+
+delete from stockdb.user where user_id = 'u200';
+
+select * from stockdb.user11;
+
+nodetool.bat getsstables stockdb user11 u1;
+
+../tools/bin/sstabledump.bat -d C:\var\lib\cassandra\data\stockdb\user11-bcd3ded06bd411e78c47cd5a8b8f9c86\mc-11-big-Data.db
+
+C:\var\lib\cassandra\data\stockdb\user11-bcd3ded06bd411e78c47cd5a8b8f9c86\mc-8-b
+ig-Data.db
+C:\var\lib\cassandra\data\stockdb\user11-bcd3ded06bd411e78c47cd5a8b8f9c86\mc-6-b
+ig-Data.db
+C:\var\lib\cassandra\data\stockdb\user11-bcd3ded06bd411e78c47cd5a8b8f9c86\mc-11-big-Data.db
+
+C:\var\lib\cassandra\data\stockdb\user11-bcd3ded06bd411e78c47cd5a8b8f9c86\mc-9-big-Data.db
+
+nodetool.bat compact
+
+BEGIN BATCH
+ INSERT INTO stockdb.user11(user_id,display_name,first_name,last_name) VALUES ('u1','Sister of Venus','Serena','Williams');
+ INSERT INTO stockdb.user11(user_id,display_name,first_name,last_name) VALUES ('u2','Tiger Woods','Eldrick','Woods');
+ INSERT INTO stockdb.user11(user_id,display_name,first_name,last_name) VALUES ('u3','Wizard of Wall Street','Warren','Buffett');
+ INSERT INTO stockdb.user11(user_id,display_name,first_name,last_name) VALUES ('u4','Two-Time World Series Winner','Buster','Posey');
+ INSERT INTO stockdb.user11(user_id,display_name,first_name,last_name) VALUES ('u5','King James','Lebron','James');
+ INSERT INTO stockdb.user11(user_id,display_name,first_name,last_name) VALUES ('u6','Doctor Liberty','Ron','Paul');
+ INSERT INTO stockdb.user11(user_id,display_name,first_name,last_name) VALUES ('u7','Friend with Benefits','Justin','Timberlake');
+ INSERT INTO stockdb.user11(user_id,display_name,first_name,last_name) VALUES ('u8','Child of Destiny','Beyonce','Knowles');
+ INSERT INTO stockdb.user11(user_id,display_name,first_name,last_name) VALUES ('u9','The Ex-Governator','Arnold','Schwarzenegger');
+ INSERT INTO stockdb.user11(user_id,display_name,first_name,last_name) VALUES ('u10','Two-Time Super Bowl Winner','Eli','Manning');
+APPLY BATCH;
+
+--For importing
+COPY stockdb.dailysummary (stock_symbol, trade_date, price_close, price_high, price_low, price_open, share_volume)
+ FROM 'C:/Users/Gpw/Downloads/Cassandra-training-2.csv';
+
+ Apache Cassandra - Blackrock
+This is a common text pad visible to everyone with all permissions Please do not "cut", please always do "copy".
+This place will be used for uploading scripts and other information during the 3 days
+
+
+CREATE TABLE stockdb.dailysummary (
+  stock_symbol VARCHAR,
+  trade_date TIMESTAMP,
+  price_open DECIMAL,
+  price_close DECIMAL,
+  price_high DECIMAL,
+  price_low DECIMAL,
+  share_volume INT,
+  PRIMARY KEY (stock_symbol, trade_date)
+) WITH CLUSTERING ORDER BY (trade_date DESC);
+
+--For importing
+COPY stockdb.dailysummary (stock_symbol, trade_date, price_close, price_high, price_low, price_open, share_volume)
+ FROM '/opt/Dropbox/1.Training/2.TrainingMaterial/Cassandra/Hands-On/Cassandra-training-2.csv';
+
+--You can download the CSV from here https://storage.googleapis.com/skl-training/cassandra/Cassandra-training-2.csv
+
+Select Datasource 
+use selectdb;
+
+
+
+
+select JSON * from stockdb.user;
+
+CREATE TABLE stockdb.comments (
+    id int PRIMARY KEY,
+    comments_map map<int, text>
+);
+
+//Please type in a single line, below is for better formatting only
+INSERT INTO stockdb.comments JSON
+'{"id": 10,
+  "comments_map": {"1": "This is comment 1",
+                               "2": "Not too long comments though",
+                               "3": "Not too many either"
+                        }
+ }';
+
+select * from stockdb.comments;
+
+
+
+
+CREATE TABLE stockdb.profile
+ (pid int PRIMARY KEY, name text, age int, birthday text, country text);
+
+insert into stockdb.profile (pid, name, age, birthday, country)        values (1, 'Name 1', 25, 'Birthday 1', 'India');
+insert into stockdb.profile (pid, name, age, birthday, country)        values (2, 'Name 2', 30, 'Birthday 2', 'India');
+insert into stockdb.profile (pid, name, age, birthday, country)        values (3, 'Name 3', 30, 'Birthday 3', 'India');
+insert into stockdb.profile (pid, name, age, birthday, country)        values (4, 'Name 4', 30, 'Birthday 4', 'USA');
+insert into stockdb.profile (pid, name, age, birthday, country)        values (5, 'Name 5', 40, 'Birthday 5', 'UK');
+insert into stockdb.profile (pid, name, age, birthday, country)        values (6, 'Name 6', 40, 'Birthday 6', 'AUS');
+
+select * from stockdb.profile where age = 30;
+
+
+
+CREATE MATERIALIZED VIEW stockdb.profile_mv1
+ AS SELECT age, birthday, name
+ FROM stockdb.profile
+ WHERE age IS NOT NULL AND pid IS NOT NULL
+ PRIMARY KEY (age, pid);
+
+select * from stockdb.profile_mv1 where age = 30;
+
+
+
+
+
+CREATE KEYSPACE IF NOT EXISTS address_book WITH replication = {'class':'NetworkTopologyStrategy', 'dc1' : 1};
+
+CREATE TYPE address_book.address (
+  street text,
+  city text,
+  zip_code int,
+  phones set<text>
+);
+
+CREATE TYPE address_book.fullname (
+  firstname text,
+  lastname text
+);
+
+//Frozen clumps all the UDT columns and stores, non frozen stores individually
+//If frozen then you can alter the UDT, non frozen you cannot
+CREATE TABLE address_book.users (
+  id int PRIMARY KEY,
+  name frozen <fullname>,
+  address_map map<text, frozen <address>>     // a collection map
+);
+
+
+INSERT INTO address_book.users (id, name)
+ VALUES (1, {firstname: 'Dennis', lastname: 'Ritchie'});
+
+UPDATE address_book.users
+ SET address_map = address_map + {'home': { street: '9779 Forest Lane',
+                                        city: 'Dallas',
+                                        zip_code: 75015,
+                                        phones: {'001 972 555 6666'}
+                                      }
+                             }
+where id=1;
+
+select * from address_book.users;
+
+UPDATE address_book.users
+ SET address_map = address_map + {'office': { street: '22 William Square, Las Colinas',
+                                          city: 'Irving',
+                                          zip_code: 75022,
+                                          phones: {'001 972 444 9999'}
+                                        }
+                             }
+where id=1;
+
+select * from address_book.users;
+
+
+
+
+
+
+
+
+CREATE INDEX on address_book.users (name);
+
+SELECT id FROM address_book.users WHERE name = {firstname: 'Dennis', lastname: 'Ritchie'};
